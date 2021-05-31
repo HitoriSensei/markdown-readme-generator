@@ -1,0 +1,28 @@
+{
+  "name": "@hitorisensei/monorepo-readme-generator",
+  "version": "0.0.3",
+  "description": "Generates simple markdown readme file for monorepo root based on data aggregated from monorepo packages",
+  "main": "index.js",
+  "bin": {
+    "monorepo-readme-generator": "./index.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "globby": "^11.0.3",
+    "json2md": "^1.10.0",
+    "pkg-up": "^2.0.0",
+    "regex-escape": "^3.4.10",
+    "yargs": "^17.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^7.27.0",
+    "eslint-config-prettier": "^6.15.0",
+    "eslint-plugin-import": "^2.23.3",
+    "eslint-plugin-prettier": "^3.4.0"
+  }
+}
