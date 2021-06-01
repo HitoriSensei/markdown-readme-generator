@@ -1,6 +1,6 @@
 {
   "name": "@hitorisensei/monorepo-readme-generator",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "Generates simple markdown readme file for monorepo root based on data aggregated from monorepo packages",
   "main": "index.js",
   "bin": {
