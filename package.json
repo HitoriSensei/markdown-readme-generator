@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "Fills template blocks within your markdown readme files. With monorepo packages support build-in.",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HitoriSensei/markdown-readme-generator.git"
+  },
   "bin": {
     "markdown-readme-generator": "./index.js"
   },
