@@ -5,6 +5,7 @@ const path = require('path');
 const { lstat, writeFile, readFile } = require('fs/promises');
 const pkgUp = require('pkg-up');
 const regexEscape = require('regex-escape');
+const flat = require('flat');
 
 const logging = {
   verbose: false,
@@ -13,7 +14,10 @@ const logging = {
 function replaceBlock(blockName, string) {
   logging.verbose && console.log(`Creating block <!-- ${blockName} -->`);
   const reBlock = regexEscape(blockName);
-  const regExp = new RegExp(`<!--\\s+${reBlock}\\s+-->(.*?<!-- ${reBlock} end -->)?`, 'gs');
+  const regExp = new RegExp(
+    `<!--\\s+${reBlock}\\s+-->([\\s\\n]*)(.*?([\\s\\n]*)<!-- ${reBlock} end -->)?`,
+    'gsm',
+  );
 
   return (template) => {
     let match = template.match(regExp);
@@ -21,7 +25,7 @@ function replaceBlock(blockName, string) {
       logging.verbose && console.log(`Found <!-- ${blockName} -->, replacing`);
       return template.replace(
         regExp,
-        `<!-- ${blockName} -->\n${string.trim()}\n<!-- ${blockName} end -->`,
+        `<!-- ${blockName} -->$1${string.trim()}$3<!-- ${blockName} end -->`,
       );
     } else {
       return template;
@@ -29,8 +33,31 @@ function replaceBlock(blockName, string) {
   };
 }
 
+async function loadCustomBlocks(custom, project) {
+  if (custom) {
+    let customBlocksModule = require(path.resolve(project, custom));
+    let customBlocksDefinitions =
+      typeof customBlocksModule === 'function' ? await customBlocksModule() : customBlocksModule;
+
+    return Object.entries(customBlocksDefinitions).map(([name, contents]) => {
+      return replaceBlock(name, typeof contents === 'string' ? contents : json2md(contents));
+    });
+  } else {
+    return [];
+  }
+}
+
 async function buildReadme(argv) {
-  const { packages, outFile, project, dry, recursive, create, contextLinkBlocks = [] } = argv;
+  const {
+    packages,
+    outFile,
+    project = path.dirname(await pkgUp()),
+    dry,
+    recursive,
+    create,
+    custom,
+    contextLinkBlocks = [],
+  } = argv;
   const packageJsons = packages
     ? await globby([path.join(path.resolve(project, packages), '*', 'package.json')])
     : [];
@@ -38,6 +65,8 @@ async function buildReadme(argv) {
   const outFilePath = path.resolve(project, outFile);
 
   logging.verbose && console.log('Processing', outFilePath);
+
+  const customBlocks = await loadCustomBlocks(custom, project);
 
   const packagesBlock = await Promise.all(
     packageJsons.map(async (packageFile) => {
@@ -75,8 +104,13 @@ async function buildReadme(argv) {
 
   const titleBlock = [{ h1: projectPackageDetails.name }];
 
-  const descriptionBlock = [
-    ...(projectPackageDetails.description ? [{ p: projectPackageDetails.description }] : []),
+  const flatPackage = flat(projectPackageDetails);
+
+  const rootPackageJsonBlocks = [
+    ...Object.keys(flatPackage)
+      .filter((key) => typeof flatPackage[key] === 'string' || typeof flatPackage[key] === 'number')
+      .map((key) => replaceBlock(key, json2md([{ p: flatPackage[key] }]))),
+    replaceBlock('title', json2md(titleBlock)),
   ];
 
   const outFileContents = await readFile(outFilePath)
@@ -104,12 +138,17 @@ async function buildReadme(argv) {
         )
       : [];
 
+  const thisBlock = [{ p: outFile }];
+  const linkThisBlock = [{ link: { title: outFile, source: outFile } }];
+
   const mdResult = [
-    replaceBlock('description', json2md(descriptionBlock)),
+    ...rootPackageJsonBlocks,
     replaceBlock('packages', json2md(packagesBlock)),
-    replaceBlock('title', json2md(titleBlock)),
+    replaceBlock('this', json2md(thisBlock)),
+    replaceBlock('link this', json2md(linkThisBlock)),
     ...linkBlocks,
     ...contextLinkBlocks,
+    ...customBlocks,
   ].reduce((template, mutator) => mutator(template), outFileContents);
 
   if (dry) {
@@ -156,13 +195,12 @@ async function main() {
       describe: 'output file path. Can be relative to project root or absolute',
     })
     .option('packages', {
-      required: true,
+      required: false,
       default: 'packages/',
       describe: 'packages directory location',
     })
     .option('project', {
-      required: true,
-      default: path.dirname(await pkgUp()),
+      required: false,
       describe: 'root project location',
     })
     .option('dry', {
@@ -184,6 +222,10 @@ async function main() {
       default: false,
 
       describe: 'display verbose output',
+    })
+    .option('custom', {
+      required: false,
+      describe: 'load custom block definitions from file (js or json)',
     })
 
     .help();
