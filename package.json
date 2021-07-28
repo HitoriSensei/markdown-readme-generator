@@ -1,6 +1,6 @@
 {
   "name": "@hitorisensei/markdown-readme-generator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Fills template blocks within your markdown readme files. With monorepo packages support build-in.",
   "main": "index.js",
   "repository": {
@@ -14,7 +14,7 @@
     "node": ">=14"
   },
   "scripts": {
-    "prepare": "node ./index.js --custom blocks.custom.js"
+    "prepare": "LANG=en_US.UTF-8 node ./index.js --custom blocks.custom.js"
   },
   "keywords": [],
   "author": "",

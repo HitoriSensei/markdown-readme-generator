@@ -11,49 +11,15 @@ const logging = {
   verbose: false,
 };
 
-function replaceBlock(blockName, string) {
-  logging.verbose && console.log(`Creating block <!-- ${blockName} -->`);
-  const reBlock = regexEscape(blockName);
-  const regExp = new RegExp(
-    `<!--\\s+${reBlock}\\s+-->([\\s\\n]*)(.*?([\\s\\n]*)<!-- ${reBlock} end -->)?`,
-    'gsm',
-  );
-
-  return (template) => {
-    let match = template.match(regExp);
-    if (match) {
-      logging.verbose && console.log(`Found <!-- ${blockName} -->, replacing`);
-      return template.replace(
-        regExp,
-        `<!-- ${blockName} -->$1${string.trim()}$3<!-- ${blockName} end -->`,
-      );
-    } else {
-      return template;
-    }
-  };
-}
-
-async function loadCustomBlocks(custom, project) {
-  if (custom) {
-    let customBlocksModule = require(path.resolve(project, custom));
-    let customBlocksDefinitions =
-      typeof customBlocksModule === 'function' ? await customBlocksModule() : customBlocksModule;
-
-    return Object.entries(customBlocksDefinitions).map(([name, contents]) => {
-      return replaceBlock(name, typeof contents === 'string' ? contents : json2md(contents));
-    });
-  } else {
-    return [];
-  }
-}
-
 async function buildReadme(argv) {
   const {
     packages,
     outFile,
+    inFile = outFile,
     project = path.dirname(await pkgUp()),
     dry,
     recursive,
+    keepTags: _keepTags,
     create,
     custom,
     contextLinkBlocks = [],
@@ -63,6 +29,46 @@ async function buildReadme(argv) {
     : [];
 
   const outFilePath = path.resolve(project, outFile);
+  const inFilePath = path.resolve(project, inFile);
+  const keepTags = _keepTags || outFilePath === inFilePath;
+
+  function replaceBlock(blockName, string) {
+    logging.verbose && console.log(`Creating block <!-- ${blockName} -->`);
+    const reBlock = regexEscape(blockName);
+    const regExp = new RegExp(
+      `<!--\\s+${reBlock}\\s+-->([\\s\\n]*)(.*?([\\s\\n]*)<!-- ${reBlock} end -->)?`,
+      'gsm',
+    );
+
+    return (template) => {
+      let match = template.match(regExp);
+      if (match) {
+        logging.verbose && console.log(`Found <!-- ${blockName} -->, replacing`);
+        return template.replace(
+          regExp,
+          keepTags
+            ? `<!-- ${blockName} -->$1${string.trim()}$3<!-- ${blockName} end -->`
+            : `$1${string.trim()}$3`,
+        );
+      } else {
+        return template;
+      }
+    };
+  }
+
+  async function loadCustomBlocks(custom, project) {
+    if (custom) {
+      let customBlocksModule = require(path.resolve(project, custom));
+      let customBlocksDefinitions =
+        typeof customBlocksModule === 'function' ? await customBlocksModule() : customBlocksModule;
+
+      return Object.entries(customBlocksDefinitions).map(([name, contents]) => {
+        return replaceBlock(name, typeof contents === 'string' ? contents : json2md(contents));
+      });
+    } else {
+      return [];
+    }
+  }
 
   logging.verbose && console.log('Processing', outFilePath);
 
@@ -113,7 +119,7 @@ async function buildReadme(argv) {
     replaceBlock('title', json2md(titleBlock)),
   ];
 
-  const outFileContents = await readFile(outFilePath)
+  const outFileContents = await readFile(inFilePath)
     .catch((e) => {
       if (create && e.errno === -2) {
         return readFile(path.resolve(__dirname, 'README.example.md'));
@@ -194,10 +200,23 @@ async function main() {
       default: 'README.md',
       describe: 'output file path. Can be relative to project root or absolute',
     })
+    .option('inFile', {
+      alias: 'i',
+      required: false,
+      default: 'README.md',
+      describe:
+        'input/template file path. Can be relative to project root or absolute. If inFile is used, outFile will not contain template comment tags, unless keepTags option is set.',
+    })
     .option('packages', {
       required: false,
       default: 'packages/',
       describe: 'packages directory location',
+    })
+    .option('keepTags', {
+      required: false,
+      boolean: true,
+      default: false,
+      describe: 'keep template tags even if inFile is used.',
     })
     .option('project', {
       required: false,
