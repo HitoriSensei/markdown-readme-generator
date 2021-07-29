@@ -1,6 +1,6 @@
 {
   "name": "@hitorisensei/markdown-readme-generator",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Fills template blocks within your markdown readme files. With monorepo packages support build-in.",
   "main": "index.js",
   "repository": {
