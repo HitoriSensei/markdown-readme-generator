@@ -14,7 +14,7 @@
     "node": ">=14"
   },
   "scripts": {
-    "prepare": "LANG=en_US.UTF-8 node ./index.js --custom blocks.custom.js"
+    "prepublishOnly": "LANG=en_US.UTF-8 node ./index.js --custom blocks.custom.js"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +32,12 @@
     "eslint-config-prettier": "^6.15.0",
     "eslint-plugin-import": "^2.23.3",
     "eslint-plugin-prettier": "^3.4.0",
+    "husky": "^7.0.1",
     "prettier": "^2.3.2"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run prepublishOnly"
+    }
   }
 }
